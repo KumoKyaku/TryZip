@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using ICSharpCode.SharpZipLib.Checksum;
 using ICSharpCode.SharpZipLib.Encryption;
 using ICSharpCode.SharpZipLib.Zip.Compression;
@@ -482,6 +484,37 @@ namespace ICSharpCode.SharpZipLib.Zip
 			}
 		}
 
+        public Password TryPassword(IList<Password> key)
+        {
+            var curentry = GetNextEntry();
+            while (!curentry.IsFile)
+            {
+                curentry = GetNextEntry();
+                if (curentry == null)
+                {
+                    break;
+                }
+            }
+
+            foreach (var item in key)
+            {
+                inputBuffer.CryptoTransform = item.GenerateKeys;
+
+                byte[] cryptbuffer = new byte[ZipConstants.CryptoHeaderSize];
+                inputBuffer.ReadClearTextBuffer(cryptbuffer, 0, ZipConstants.CryptoHeaderSize);
+
+                if (cryptbuffer[ZipConstants.CryptoHeaderSize - 1] == curentry.CryptoCheckValue)
+                {
+                    return item;
+                }
+                ///密码错误要重置可获得的长度
+                inputBuffer.Available += cryptbuffer.Length;
+                continue;
+            }
+            
+            return null;
+        }
+
 		/// <summary>
 		/// Read a block of bytes from the stream.
 		/// </summary>
@@ -607,4 +640,12 @@ namespace ICSharpCode.SharpZipLib.Zip
 			base.Close();
 		}
 	}
+}
+
+public class Password
+{
+
+    public string key { get; set; }
+    public int weight { get; set; }
+    public ICryptoTransform GenerateKeys { get; set; }
 }

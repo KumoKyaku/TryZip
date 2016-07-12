@@ -14,47 +14,62 @@ namespace The_Keys
     {
         internal static void Loopkey(string[] filelist)
         {
-            int i = 0;
-            while (filelist.Length > i)
-            {
-                try
-                {
-                    string path = filelist[i];
-                    NewMethod();
+            string txtpath = Directory.GetCurrentDirectory() + "\\老司机的车钥匙.txt";
 
-                    using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read))
+            using (StreamWriter txtfs = File.CreateText(txtpath))
+            {
+                int i = 0;
+                while (filelist.Length > i)
+                {
+                    try
                     {
-                        ZipInputStream zs = new ZipInputStream(fs);
-                        var entry = zs.GetNextEntry();
-                        while (!entry.IsFile)
+
+
+                        string path = filelist[i];
+
+                        using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read))
                         {
-                            entry = zs.GetNextEntry();
-                            if (entry == null)
+
+                            ZipInputStream zs = new ZipInputStream(fs);
+                            var pw = zs.TryPassword(GetPassword());
+                            if (pw !=null)
                             {
-                                break;
+                                string filename = path.Split('\\').Last();
+                                txtfs.WriteLine(filename + "-----------" + pw.key);
                             }
                         }
                     }
-                }
-                catch (Exception)
-                {
-                    continue;
+                    catch (Exception)
+                    {
+                        continue;
+                    }
+                    finally
+                    {
+                        i++;
+                    }
                 }
             }
         }
 
-        private static IList<ICryptoTransform> NewMethod(string[] keys)
+        private static IList<Password> GetPassword()
         {
-            List<ICryptoTransform> passwords = new List<ICryptoTransform>();
+            return GetPassword(Lexicon.KeyList);
+        }
+
+        private static IList<Password> GetPassword(string[] keys)
+        {
+            List<Password> passwords = new List<Password>();
             foreach (var item in keys)
             {
                 var managed = new PkzipClassicManaged();
                 byte[] key = PkzipClassic.GenerateKeys(ZipConstants.ConvertToArray(item));
 
                 ICryptoTransform key2 = managed.CreateDecryptor(key, null);
-                passwords.Add(key2);
+                passwords.Add(new Password() { key = item,GenerateKeys = key2 });
             }
             return passwords;
         }
     }
 }
+
+
